@@ -1,9 +1,40 @@
-const axios = require('axios');
+const https = require('https');
+const { URL } = require('url');
+
+function postJSON(urlString, payload) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlString);
+    const data = JSON.stringify(payload);
+
+    const options = {
+      hostname: url.hostname,
+      path: url.pathname + (url.search || ''),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => (body += chunk));
+      res.on('end', () => {
+        let json = {};
+        try { json = body ? JSON.parse(body) : {}; } catch { /* ignore */ }
+        resolve({ status: res.statusCode, json });
+      });
+    });
+
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
 
 module.exports = async (req, res) => {
-  // 1. Check for the secret key for security
   const secretKey = req.headers['x-secret-key'];
-  if (secretKey !== 'Apexmine1xx') { // You will set this next
+  if (secretKey !== process.env.SECRET_KEY) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -11,23 +42,31 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { chatId, botToken, message } = req.body;
+  // parse body safely (works with raw body too)
+  let body = req.body;
+  if (!body || typeof body !== 'object') {
+    try {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+    } catch { body = {}; }
+  }
 
-  if (!chatId || !botToken || !message) {
+  const { chatId, botToken, message } = body || {};
+  if (!chatId!message) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
 
-  const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+  // IMPORTANT: quotes used here (no backticks)
+  const telegramUrl = 'https://api.telegram.org/bot' + botToken + '/sendMessage';
 
   try {
-    await axios.post(telegramUrl, {
-      chat_id: chatId,
-      text: message,
-      parse_mode: 'HTML'
-    });
-    res.status(200).json({ success: true });
-  } catch (error) {
-    console.error('Telegram error:', error.response?.data);
-    res.status(500).json({ error: 'Failed to send message' });
+    const tg = await postJSON(telegramUrl, { chat_id: chatId, text: message });
+    if (tg.status < 200tg.json?.ok === false) {
+      return res.status(500).json({ error: tg.json?.description || 'Telegram error' });
+    }
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Unknown error' });
   }
 };
