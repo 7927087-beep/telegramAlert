@@ -53,7 +53,7 @@ module.exports = async (req, res) => {
   }
 
   const { chatId, botToken, message } = body || {};
-  if (!chatId!message) {
+  if (!chatId || !botToken || !message) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
 
@@ -62,7 +62,7 @@ module.exports = async (req, res) => {
 
   try {
     const tg = await postJSON(telegramUrl, { chat_id: chatId, text: message });
-    if (tg.status < 200tg.json?.ok === false) {
+    if (tg.status < 200 || tg.status >= 300 || tg.json?.ok === false) {
       return res.status(500).json({ error: tg.json?.description || 'Telegram error' });
     }
     return res.status(200).json({ success: true });
