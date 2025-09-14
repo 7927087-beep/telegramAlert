@@ -3,9 +3,9 @@ const axios = require('axios');
 module.exports = async (req, res) => {
   // 1. Check for the secret key for security
   const secretKey = req.headers['x-secret-key'];
-  if (secretKey !== 'YOUR_STRONG_SECRET_KEY_HERE') { // You will set this next
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  if (secretKey !== process.env.SECRET_KEY) {
+  return res.status(401).json({ error: 'Unauthorized' });
+}
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
