@@ -3,7 +3,7 @@ const axios = require('axios');
 module.exports = async (req, res) => {
   // 1. Check for the secret key for security
   const secretKey = req.headers['x-secret-key'];
-  if (secretKey !== 'Apexmine1xx') { // You will set this next
+  if (secretKey !== 'YOUR_STRONG_SECRET_KEY_HERE') { // You will set this next
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
